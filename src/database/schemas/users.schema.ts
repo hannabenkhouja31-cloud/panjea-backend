@@ -1,0 +1,29 @@
+import { pgTable, text, varchar, integer, boolean, timestamp, index, check, customType } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { citext } from './custom-types';
+
+export const SUPPORTED_LANGUAGES = ['fr', 'en', 'es', 'de', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ar', 'hi', 'tr', 'ko'] as const;
+
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  username: citext('username').notNull().unique(),
+  city: varchar('city', { length: 100 }),
+  country: varchar('country', { length: 100 }),
+  languages: text('languages').array().notNull().default(sql`'{}'::text[]`),
+  tripsCount: integer('trips_count').notNull().default(0),
+  description: varchar('description', { length: 512 }),
+  budgetLevel: integer('budget_level'),
+  profilePictureUrl: text('profile_picture_url'),
+  isVerified: boolean('is_verified').notNull().default(false),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idxUsersCity: index('idx_users_city').on(table.city),
+  idxUsersCountry: index('idx_users_country').on(table.country),
+  idxUsersCreatedAt: index('idx_users_created_at').on(table.createdAt),
+  idxUsersLanguagesGin: index('idx_users_languages_gin').using('gin', table.languages),
+  budgetLevelCheck: check('users_budget_level_check', sql`${table.budgetLevel} >= 1 AND ${table.budgetLevel} <= 3`),
+  tripsCountCheck: check('users_trips_count_check', sql`${table.tripsCount} >= 0`),
+  usernameCheck: check('users_username_check', sql`${table.username} ~ '^[A-Za-z0-9_\.]{3,50}$'::citext`),
+  languagesCheck: check('users_languages_check', sql`${table.languages} <@ ARRAY['fr', 'en', 'es', 'de', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ar', 'hi', 'tr', 'ko']::text[]`),
+}))
