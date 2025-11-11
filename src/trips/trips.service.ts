@@ -324,6 +324,29 @@ export class TripsService {
       throw new NotFoundException(`Trip with ID ${id} not found`);
     }
 
+    const tripMediaRecords = await this.databaseService.db
+      .select()
+      .from(tripMedia)
+      .where(eq(tripMedia.tripId, id));
+
+    if (tripMediaRecords.length > 0) {
+      const utapi = new (await import('uploadthing/server')).UTApi({
+        token: process.env.UPLOADTHING_TOKEN,
+      });
+
+      const fileKeys = tripMediaRecords
+        .map(media => media.url.split('/').pop())
+        .filter((key): key is string => !!key);
+
+      if (fileKeys.length > 0) {
+        try {
+          await utapi.deleteFiles(fileKeys);
+        } catch (error) {
+          console.error('Erreur suppression fichiers UploadThing:', error);
+        }
+      }
+    }
+
     await this.databaseService.db
       .delete(trips)
       .where(eq(trips.id, id));

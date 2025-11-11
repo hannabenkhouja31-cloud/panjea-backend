@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, integer, boolean, timestamp, index, check, customType } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, integer, boolean, timestamp, index, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { citext } from './custom-types';
 
@@ -15,7 +15,14 @@ export const users = pgTable('users', {
   budgetLevel: integer('budget_level'),
   profilePictureUrl: text('profile_picture_url'),
   isVerified: boolean('is_verified').notNull().default(false),
+  isDeleted: boolean('is_deleted').notNull().default(false),
   emailVerified: boolean('email_verified').notNull().default(false),
+  isAdmin: boolean('is_admin').notNull().default(false),
+  reportedCount: integer('reported_count').notNull().default(0),
+  isBanned: boolean('is_banned').notNull().default(false),
+  bannedAt: timestamp('banned_at', { withTimezone: true }),
+  bannedReason: text('banned_reason'),
+  bannedUntil: timestamp('banned_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   idxUsersCity: index('idx_users_city').on(table.city),
@@ -26,4 +33,4 @@ export const users = pgTable('users', {
   tripsCountCheck: check('users_trips_count_check', sql`${table.tripsCount} >= 0`),
   usernameCheck: check('users_username_check', sql`${table.username} ~ '^[A-Za-z0-9_\.]{3,50}$'::citext`),
   languagesCheck: check('users_languages_check', sql`${table.languages} <@ ARRAY['fr', 'en', 'es', 'de', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ar', 'hi', 'tr', 'ko']::text[]`),
-}))
+}));

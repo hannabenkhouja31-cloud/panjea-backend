@@ -14,9 +14,11 @@ import { StackAuthModule } from './stack-auth/stack-auth.module';
 import { EmailVerificationModule } from './email-verification/email-verification.module';
 import { PasswordResetModule } from './password-reset/password-reset.module';
 import { TripQuestionsModule } from './trip-questions/trip-questions.module';
+import { UserReportsModule } from './user-reports/user-reports.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
-  imports: [TripQuestionsModule, PasswordResetModule, EmailVerificationModule, StackAuthModule, EmailModule, UsersModule, TripsModule, DatabaseModule, TripMembersModule, TravelTypesModule, UploadthingModule, MessagesModule, ChatGatewayModule],
+  imports: [AdminModule, UserReportsModule, TripQuestionsModule, PasswordResetModule, EmailVerificationModule, StackAuthModule, EmailModule, UsersModule, TripsModule, DatabaseModule, TripMembersModule, TravelTypesModule, UploadthingModule, MessagesModule, ChatGatewayModule],
   controllers: [AppController],
   providers: [AppService],
 })

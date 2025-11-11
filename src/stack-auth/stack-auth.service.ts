@@ -55,4 +55,17 @@ export class StackAuthService implements OnModuleInit {
       return false;
     }
   }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    try {
+      const user = await this.stackServerApp.getUser(userId);
+      if (!user) return false;
+      
+      await user.delete();
+      return true;
+    } catch (error) {
+      console.error('Error deleting user from Stack Auth:', error);
+      return false;
+    }
+  }
 }

@@ -70,6 +70,21 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
+    if (user.isDeleted) {
+      return {
+        id: user.id,
+        username: 'Utilisateur supprimé',
+        languages: [],
+        budgetLevel: 1,
+        travelTypes: [],
+        tripsCount: 0,
+        isVerified: false,
+        emailVerified: false,
+        isDeleted: true,
+        createdAt: user.createdAt,
+      };
+    }
+
     const userTravelTypeRecords = await this.databaseService.db
       .select({
         slug: travelTypes.slug,
@@ -113,6 +128,40 @@ export class UsersService {
           .values(userTravelTypeValues);
       }
     }
+
+    return user;
+  }
+
+  async anonymize(id: string) {
+    const timestamp = Date.now();
+    const anonymizedData = {
+      username: `deleted_user_${timestamp}_${id.substring(0, 8)}`,
+      description: null,
+      city: null,
+      country: null,
+      profilePictureUrl: null,
+      languages: [],
+      budgetLevel: 1,
+      isDeleted: true,
+    };
+
+    await this.databaseService.db
+      .delete(userTravelTypes)
+      .where(eq(userTravelTypes.userId, id));
+
+    const deleteResult = await this.stackAuthService.deleteUser(id);
+    
+    if (!deleteResult) {
+      throw new Error('Failed to delete user from Stack Auth');
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const [user] = await this.databaseService.db
+      .update(users)
+      .set(anonymizedData)
+      .where(eq(users.id, id))
+      .returning();
 
     return user;
   }

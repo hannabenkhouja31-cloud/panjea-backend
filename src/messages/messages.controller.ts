@@ -49,4 +49,39 @@ export class MessagesController {
     
     return this.messagesService.setMessageReadByUser(messageId, userId);
   }
+
+  @Get('my-unanswered-questions')
+  getMyUnansweredQuestions(
+    @Headers('x-user-id') userId: string
+  ) {
+    if (!userId) {
+      throw new UnauthorizedException('User ID required');
+    }
+    
+    return this.messagesService.getUnansweredQuestionsForUser(userId);
+  }
+
+  @Post('mark-trip-questions-read/:tripId')
+  @HttpCode(HttpStatus.OK)
+  markTripQuestionsAsRead(
+    @Param('tripId') tripId: string,
+    @Headers('x-user-id') userId: string
+  ) {
+    if (!userId) {
+      throw new UnauthorizedException('User ID required');
+    }
+    
+    return this.messagesService.markTripQuestionsAsRead(tripId, userId);
+  }
+
+  @Get('trips-with-questions')
+  getTripsWithQuestions(
+    @Headers('x-user-id') userId: string
+  ) {
+    if (!userId) {
+      throw new UnauthorizedException('User ID required');
+    }
+    
+    return this.messagesService.getTripsWithQuestions(userId);
+  }
 }

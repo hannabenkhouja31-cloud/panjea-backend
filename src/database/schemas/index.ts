@@ -12,3 +12,4 @@ export * from './trip-media.schema';
 export * from './trip-highlights.schema';
 export * from './email-verification-tokens.schema';
 export * from './password-reset-tokens.schema';
+export * from './user-reports.schema';

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, HttpCode, HttpStatus, Delete } from '@nestjs/common';
 import { UsersService } from './users.service';
 import type { NewUser } from './entities/user.entity';
 
@@ -23,5 +23,11 @@ export class UsersController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() data: Partial<NewUser> & { travelTypes?: string[] }) {
     return this.usersService.update(id, data);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string) {
+    await this.usersService.anonymize(id);
   }
 }
