@@ -13,4 +13,10 @@ export class AppController {
       timestamp: new Date().toLocaleDateString()+' at '+new Date().toLocaleTimeString()
     };
   }
+
+  @Get('/healthcheck')
+  @HttpCode(200)
+  healthCheck(){
+    return;
+  }
 }
