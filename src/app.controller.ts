@@ -6,7 +6,7 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  @HttpCode(204)
+  @HttpCode(200)
   getPing(): { message: string; timestamp: string } {
     return { 
       message: this.appService.getPing(),
