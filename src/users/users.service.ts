@@ -17,15 +17,18 @@ export class UsersService {
     private readonly emailVerificationService: EmailVerificationService,
   ) {}
 
-  async create(data: NewUser & { travelTypes?: string[] }) {
-    const { travelTypes: travelTypesData, ...userData } = data;
+  async create(data: NewUser & { travelTypes?: string[]; email?: string }) {
+    const { travelTypes: travelTypesData, email, ...userData } = data;
         
     const [user] = await this.databaseService.db
       .insert(users)
       .values(userData)
       .returning();
 
-    console.log('User créé:', user);
+    console.log('=== USER CREATION START ===');
+    console.log('User ID:', user.id);
+    console.log('Username:', user.username);
+    console.log('Email provided:', email);
 
     if (travelTypesData && travelTypesData.length > 0) {
       const travelTypeRecords = await this.databaseService.db
@@ -42,15 +45,35 @@ export class UsersService {
           .insert(userTravelTypes)
           .values(userTravelTypeValues);
       } 
-    } else {
-      console.log('Pas de travelTypes fournis ou tableau vide');
     }
 
-    const email = await this.stackAuthService.getUserEmail(user.id);
-    if (email) {
+    let userEmail: string | null | undefined = email;
+    
+    if (!userEmail) {
+      console.log('No email provided, fetching from Stack Auth...');
+      userEmail = await this.stackAuthService.getUserEmail(user.id);
+    }
+
+    if (!userEmail) {
+      console.error('No email available for user:', user.id);
+      console.log('=== USER CREATION END (NO EMAIL) ===\n');
+      return user;
+    }
+
+    try {
+      console.log('Email:', userEmail);
+      console.log('Generating verification token...');
+      
       const verificationToken = await this.emailVerificationService.generateVerificationToken(user.id);
-      this.emailService.sendWelcomeEmail(email, user.username, verificationToken)
-        .catch(err => console.error('Welcome email error:', err));
+      
+      console.log('Sending welcome email...');
+      await this.emailService.sendWelcomeEmail(userEmail, user.username, verificationToken);
+      
+      console.log('Welcome email sent successfully');
+      console.log('=== USER CREATION END (SUCCESS) ===\n');
+    } catch (error) {
+      console.error('Error in email flow:', error);
+      console.log('=== USER CREATION END (ERROR) ===\n');
     }
 
     return user;
