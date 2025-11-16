@@ -23,9 +23,29 @@ export class EmailService {
       this.logger.log(`OneSignal Config:`);
       this.logger.log(`- App ID: ${appId ? '✓' : '✗'}`);
       this.logger.log(`- API Key: ${apiKey ? '✓ (hidden)' : '✗'}`);
-      this.logger.log(`- Template ID: ${welcomeTemplateId || '✗'}`);
-      this.logger.log(`- From: ${fromName} <${fromAddress}>`);
-      this.logger.log(`- Verification URL: ${verificationUrl}`);
+
+      this.logger.log(`Subscribing email to OneSignal...`);
+      try {
+        const subscribeResponse = await fetch(`https://api.onesignal.com/apps/${appId}/users`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Key ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            subscriptions: [{
+              type: 'Email',
+              token: email,
+              enabled: true
+            }]
+          })
+        });
+        
+        const subscribeResult = await subscribeResponse.json();
+        this.logger.log(`Subscribe response:`, JSON.stringify(subscribeResult, null, 2));
+      } catch (subscribeError) {
+        this.logger.warn(`Subscribe failed (continuing anyway):`, subscribeError);
+      }
 
       const payload = {
         app_id: appId,
@@ -53,15 +73,18 @@ export class EmailService {
       });
 
       this.logger.log(`OneSignal Response Status: ${response.status}`);
-
-      if (!response.ok) {
-        const error = await response.json();
-        this.logger.error(`OneSignal API error:`, JSON.stringify(error, null, 2));
-        throw new Error(`Failed to send welcome email: ${JSON.stringify(error)}`);
-      }
-
       const result = await response.json();
       this.logger.log(`OneSignal full response:`, JSON.stringify(result, null, 2));
+
+      if (result.errors) {
+        this.logger.error(`❌ OneSignal returned errors:`, JSON.stringify(result.errors, null, 2));
+        throw new Error(`OneSignal API error: ${JSON.stringify(result.errors)}`);
+      }
+
+      if (!result.id) {
+        throw new Error(`Failed to send email: ${JSON.stringify(result)}`);
+      }
+
       this.logger.log(`✓ Welcome email sent successfully - ID: ${result.id}`);
       this.logger.log(`=== END WELCOME EMAIL ===\n`);
     } catch (error) {

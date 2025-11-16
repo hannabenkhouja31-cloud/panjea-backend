@@ -1,110 +1,174 @@
-// email-verification.service.ts
 import { Injectable, Logger } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
-import { emailVerificationTokens, users } from '../database/schemas';
-import { eq, and, gt } from 'drizzle-orm';
-import { randomBytes } from 'crypto';
 
 @Injectable()
-export class EmailVerificationService {
-  private readonly logger = new Logger(EmailVerificationService.name);
+export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
+  private readonly backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+  private readonly frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  async generateVerificationToken(userId: string): Promise<string> {
-    this.logger.log(`=== GENERATE VERIFICATION TOKEN ===`);
-    this.logger.log(`User ID: ${userId}`);
+  async sendWelcomeEmail(email: string, username: string, verificationToken: string): Promise<void> {
+    this.logger.log(`=== START WELCOME EMAIL ===`);
+    this.logger.log(`Recipient: ${email}`);
+    this.logger.log(`Username: ${username}`);
     
-    const token = randomBytes(32).toString('hex');
-    const tokenId = randomBytes(16).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    this.logger.log(`Token ID: ${tokenId}`);
-    this.logger.log(`Token: ${token.substring(0, 10)}...`);
-    this.logger.log(`Expires at: ${expiresAt.toISOString()}`);
-
     try {
-      await this.databaseService.db.insert(emailVerificationTokens).values({
-        id: tokenId,
-        userId,
-        token,
-        expiresAt,
-      });
+      
+      const appId = process.env.ONESIGNAL_APP_ID;
+      const apiKey = process.env.ONESIGNAL_API_KEY;
+      const fromName = process.env.ONESIGNAL_EMAIL_FROM_NAME || 'Panjéa';
+      const fromAddress = process.env.ONESIGNAL_EMAIL_FROM_ADDRESS;
+      const welcomeTemplateId = process.env.ONESIGNAL_WELCOME_TEMPLATE_ID;
+      const verificationUrl = `${this.backendUrl}/email-verification/verify?token=${verificationToken}`;
 
-      this.logger.log(`✓ Token saved to database`);
-      this.logger.log(`=== END GENERATE TOKEN ===\n`);
-    } catch (error) {
-      this.logger.error(`✗ Error saving token to database:`, error);
-      this.logger.log(`=== END GENERATE TOKEN (ERROR) ===\n`);
-      throw error;
-    }
-
-    return token;
-  }
-
-  async verifyToken(token: string): Promise<{ success: boolean; userId?: string }> {
-    this.logger.log(`=== VERIFY TOKEN ===`);
-    this.logger.log(`Token: ${token.substring(0, 10)}...`);
-    this.logger.log(`Current time: ${new Date().toISOString()}`);
-
-    try {
-      const [tokenRecord] = await this.databaseService.db
-        .select()
-        .from(emailVerificationTokens)
-        .where(
-          and(
-            eq(emailVerificationTokens.token, token),
-            eq(emailVerificationTokens.used, false),
-            gt(emailVerificationTokens.expiresAt, new Date())
-          )
-        );
-
-      if (!tokenRecord) {
-        this.logger.warn(`✗ Token not found or expired/used`);
+      try {
+        const subscribeResponse = await fetch(`https://api.onesignal.com/apps/${appId}/users`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Key ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            subscriptions: [{
+              type: 'Email',
+              token: email,
+              enabled: true
+            }]
+          })
+        });
         
-        const [anyToken] = await this.databaseService.db
-          .select()
-          .from(emailVerificationTokens)
-          .where(eq(emailVerificationTokens.token, token));
+        const subscribeResult = await subscribeResponse.json();
+        this.logger.log(`Subscribe response:`, JSON.stringify(subscribeResult, null, 2));
         
-        if (anyToken) {
-          this.logger.log(`Token exists but:`);
-          this.logger.log(`- Used: ${anyToken.used}`);
-          this.logger.log(`- Expired: ${anyToken.expiresAt < new Date()}`);
-          this.logger.log(`- Expires at: ${anyToken.expiresAt.toISOString()}`);
-        } else {
-          this.logger.log(`Token does not exist in database`);
-        }
-        
-        this.logger.log(`=== END VERIFY TOKEN (FAILED) ===\n`);
-        return { success: false };
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (subscribeError) {
+        this.logger.warn(`Subscribe failed (continuing anyway):`, subscribeError);
       }
 
-      this.logger.log(`✓ Token found and valid`);
-      this.logger.log(`Token ID: ${tokenRecord.id}`);
-      this.logger.log(`User ID: ${tokenRecord.userId}`);
-      this.logger.log(`Expires at: ${tokenRecord.expiresAt.toISOString()}`);
+      const payload = {
+        app_id: appId,
+        include_unsubscribed: true,
+        email_to: [email],
+        target_channel: 'email',
+        email_subject: 'Bienvenue sur Panjéa ! 🌍',
+        template_id: welcomeTemplateId,
+        custom_data: {
+          username: username,
+          verification_url: verificationUrl,
+          explore_url: `${this.frontendUrl}/voyage`,
+        },
+        email_from_name: fromName,
+        email_from_address: fromAddress,
+      };
 
-      this.logger.log(`Marking token as used...`);
-      await this.databaseService.db
-        .update(emailVerificationTokens)
-        .set({ used: true })
-        .where(eq(emailVerificationTokens.id, tokenRecord.id));
+      const response = await fetch('https://api.onesignal.com/notifications?c=email', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-      this.logger.log(`Updating user email verification status...`);
-      await this.databaseService.db
-        .update(users)
-        .set({ emailVerified: true })
-        .where(eq(users.id, tokenRecord.userId));
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Failed to send welcome email: ${JSON.stringify(error)}`);
+      }
 
-      this.logger.log(`✓ Email verified successfully for user ${tokenRecord.userId}`);
-      this.logger.log(`=== END VERIFY TOKEN (SUCCESS) ===\n`);
+      const result = await response.json();
 
-      return { success: true, userId: tokenRecord.userId };
+      if (result.errors) {
+        this.logger.error(`❌ OneSignal returned errors:`, JSON.stringify(result.errors, null, 2));
+        throw new Error(`OneSignal API error: ${JSON.stringify(result.errors)}`);
+      }
+
+      if (!result.id) {
+        throw new Error(`Failed to send email: no ID returned`);
+      }
+
     } catch (error) {
-      this.logger.error(`✗ Error verifying token:`, error);
-      this.logger.log(`=== END VERIFY TOKEN (ERROR) ===\n`);
-      return { success: false };
+      this.logger.error(`✗ Error sending welcome email:`, error);
+      throw error;
+    }
+  }
+
+  async sendPasswordResetEmail(email: string, token: string): Promise<void> {
+    
+    try {
+      const appId = process.env.ONESIGNAL_APP_ID;
+      const apiKey = process.env.ONESIGNAL_API_KEY;
+      const fromName = process.env.ONESIGNAL_EMAIL_FROM_NAME || 'Panjéa';
+      const fromAddress = process.env.ONESIGNAL_EMAIL_FROM_ADDRESS;
+      const passwordResetTemplateId = process.env.ONESIGNAL_PASSWORD_RESET_TEMPLATE_ID;
+      const resetUrl = `${this.frontendUrl}/reset-password?token=${token}`;
+
+      try {
+        const subscribeResponse = await fetch(`https://api.onesignal.com/apps/${appId}/users`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Key ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            subscriptions: [{
+              type: 'Email',
+              token: email,
+              enabled: true
+            }]
+          })
+        });
+        
+        const subscribeResult = await subscribeResponse.json();
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (subscribeError) {
+        this.logger.warn(`Subscribe failed (continuing anyway):`, subscribeError);
+      }
+
+      const payload = {
+        app_id: appId,
+        include_unsubscribed: true,
+        email_to: [email],
+        target_channel: 'email',
+        email_subject: 'Réinitialisation de ton mot de passe - Panjéa',
+        template_id: passwordResetTemplateId,
+        custom_data: {
+          reset_url: resetUrl,
+        },
+        email_from_name: fromName,
+        email_from_address: fromAddress,
+      };
+
+      const response = await fetch('https://api.onesignal.com/notifications?c=email', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+
+      if (!response.ok) {
+        const error = await response.json();
+        this.logger.error(`OneSignal API error:`, JSON.stringify(error, null, 2));
+        throw new Error(`Failed to send password reset email: ${JSON.stringify(error)}`);
+      }
+
+      const result = await response.json();
+      this.logger.log(`OneSignal full response:`, JSON.stringify(result, null, 2));
+
+      if (result.errors) {
+        this.logger.error(`❌ OneSignal returned errors:`, JSON.stringify(result.errors, null, 2));
+        throw new Error(`OneSignal API error: ${JSON.stringify(result.errors)}`);
+      }
+
+      if (!result.id) {
+        throw new Error(`Failed to send email: no ID returned`);
+      }
+
+    } catch (error) {
+      this.logger.error(`✗ Error sending password reset email:`, error);
+      throw error;
     }
   }
 }
