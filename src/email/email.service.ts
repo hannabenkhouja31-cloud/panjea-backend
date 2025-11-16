@@ -61,6 +61,7 @@ export class EmailService {
       }
 
       const result = await response.json();
+      this.logger.log(`OneSignal full response:`, JSON.stringify(result, null, 2));
       this.logger.log(`✓ Welcome email sent successfully - ID: ${result.id}`);
       this.logger.log(`=== END WELCOME EMAIL ===\n`);
     } catch (error) {
