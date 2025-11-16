@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, inArray, and, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 import { NewTrip } from './entities/trip.entity';
-import { travelTypes, tripTags, trips, tripMedia, tripMembers } from 'src/database/schemas';
+import { travelTypes, tripTags, trips, tripMedia, tripMembers, users } from 'src/database/schemas';
 import { temporaryTripMedia } from 'src/database/schemas/temporary-trip-media.schema';
 
 @Injectable()
@@ -170,6 +170,14 @@ export class TripsService {
           .where(eq(tripMedia.tripId, trip.id))
           .orderBy(tripMedia.position);
 
+        const [organizer] = await this.databaseService.db
+          .select({
+            isDeleted: users.isDeleted,
+            isBanned: users.isBanned,
+          })
+          .from(users)
+          .where(eq(users.id, trip.organizerId));
+
         return {
           ...trip,
           travelTypes: tripTagRecords.map(record => record.slug),
@@ -177,6 +185,8 @@ export class TripsService {
             ...media,
             id: media.id.toString(),
           })),
+          organizerIsDeleted: organizer?.isDeleted ?? true,
+          organizerIsBanned: organizer?.isBanned ?? false,
         };
       })
     );
