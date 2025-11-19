@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, integer, boolean, timestamp, index, check } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, integer, boolean, timestamp, index, check, smallint } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { citext } from './custom-types';
 
@@ -9,6 +9,7 @@ export const users = pgTable('users', {
   username: citext('username').notNull().unique(),
   city: varchar('city', { length: 100 }),
   country: varchar('country', { length: 100 }),
+  age: smallint('age'),
   languages: text('languages').array().notNull().default(sql`'{}'::text[]`),
   tripsCount: integer('trips_count').notNull().default(0),
   description: varchar('description', { length: 512 }),
@@ -33,4 +34,5 @@ export const users = pgTable('users', {
   tripsCountCheck: check('users_trips_count_check', sql`${table.tripsCount} >= 0`),
   usernameCheck: check('users_username_check', sql`${table.username} ~ '^[A-Za-z0-9_\.]{3,50}$'::citext`),
   languagesCheck: check('users_languages_check', sql`${table.languages} <@ ARRAY['fr', 'en', 'es', 'de', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ar', 'hi', 'tr', 'ko']::text[]`),
+  ageCheck: check('users_age_check', sql`${table.age} IS NULL OR (${table.age} >= 18 AND ${table.age} <= 120)`),
 }));
