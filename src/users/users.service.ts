@@ -175,33 +175,42 @@ export class UsersService {
       isVerified: oldUser.isVerified
     };
 
-    return await this.databaseService.db.transaction(async (tx) => {
-      const [newUser] = await tx.insert(users).values(mergedData).returning();
+    const [newUser] = await this.databaseService.db
+      .insert(users)
+      .values(mergedData)
+      .returning();
 
-      await tx.update(trips)
-        .set({ organizerId: newUser.id })
-        .where(eq(trips.organizerId, oldId));
+    await this.databaseService.db
+      .update(trips)
+      .set({ organizerId: newUser.id })
+      .where(eq(trips.organizerId, oldId));
 
-      if (travelTypesData && travelTypesData.length > 0) {
-        const travelTypeRecords = await tx
-          .select()
-          .from(travelTypes)
-          .where(inArray(travelTypes.slug, travelTypesData));
+    if (travelTypesData && travelTypesData.length > 0) {
+      const travelTypeRecords = await this.databaseService.db
+        .select()
+        .from(travelTypes)
+        .where(inArray(travelTypes.slug, travelTypesData));
 
-        if (travelTypeRecords.length > 0) {
-          const userTravelTypeValues = travelTypeRecords.map(tt => ({
-            userId: newUser.id,
-            travelTypeId: tt.id,
-          }));
-          await tx.insert(userTravelTypes).values(userTravelTypeValues);
-        }
+      if (travelTypeRecords.length > 0) {
+        const userTravelTypeValues = travelTypeRecords.map(tt => ({
+          userId: newUser.id,
+          travelTypeId: tt.id,
+        }));
+        await this.databaseService.db
+          .insert(userTravelTypes)
+          .values(userTravelTypeValues);
       }
+    }
 
-      await tx.delete(userTravelTypes).where(eq(userTravelTypes.userId, oldId));
-      await tx.delete(users).where(eq(users.id, oldId));
+    await this.databaseService.db
+      .delete(userTravelTypes)
+      .where(eq(userTravelTypes.userId, oldId));
 
-      return newUser;
-    });
+    await this.databaseService.db
+      .delete(users)
+      .where(eq(users.id, oldId));
+
+    return newUser;
   }
 
   async update(id: string, data: Partial<NewUser> & { travelTypes?: string[] }) {
