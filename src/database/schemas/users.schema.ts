@@ -26,7 +26,7 @@ export const users = pgTable('users', {
   bannedUntil: timestamp('banned_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   email: varchar('email', { length: 255 }),
-  isFromBubble: boolean('isfrombubble').default(false),
+  isFromBubble: boolean('is_from_bubble').default(false),
 }, (table) => ({
   idxUsersCity: index('idx_users_city').on(table.city),
   idxUsersCountry: index('idx_users_country').on(table.country),

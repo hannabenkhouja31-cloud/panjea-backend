@@ -288,13 +288,20 @@ export class UsersService {
       .delete(userTravelTypes)
       .where(eq(userTravelTypes.userId, id));
 
-    const deleteResult = await this.stackAuthService.deleteUser(id);
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-    if (!deleteResult) {
-      throw new Error('Failed to delete user from Stack Auth');
+    if (isUUID) {
+      console.log(`🗑️ Deleting from Stack Auth (valid UUID): ${id}`);
+      const deleteResult = await this.stackAuthService.deleteUser(id);
+
+      if (!deleteResult) {
+        throw new Error('Failed to delete user from Stack Auth');
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } else {
+      console.log(`⏭️ Skipping Stack Auth deletion (Bubble ID): ${id}`);
     }
-
-    await new Promise(resolve => setTimeout(resolve, 1000));
 
     const [user] = await this.databaseService.db
       .update(users)
