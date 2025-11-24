@@ -1,28 +1,29 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
-import { sql } from 'drizzle-orm';
+import { StackAuthService } from './stack-auth.service';
 
 @Injectable()
 export class StackAuthCleanupService {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly stackAuthService: StackAuthService,
+  ) {}
 
   async forceDeleteStackAuthUser(email: string): Promise<boolean> {
     try {
       console.log('🧹 [CLEANUP] Starting force delete for email:', email);
 
-      const checkQuery = sql`SELECT id, email FROM neon_auth.users_sync WHERE email = ${email}`;
-      const existing = await this.databaseService.db.execute(checkQuery);
-      console.log('🔍 [CLEANUP] Found existing users:', existing.rows);
+      const user = await this.stackAuthService.getUserByEmail(email);
+      console.log('🔍 [CLEANUP] Found user via Stack Auth API:', user?.id);
 
-      const deleteQuery = sql`DELETE FROM neon_auth.users_sync WHERE email = ${email}`;
-      const result = await this.databaseService.db.execute(deleteQuery);
-      console.log('✅ [CLEANUP] Delete result:', result);
+      if (!user) {
+        console.log('✅ [CLEANUP] No user found with this email');
+        return true;
+      }
 
-      const verifyQuery = sql`SELECT id, email FROM neon_auth.users_sync WHERE email = ${email}`;
-      const verify = await this.databaseService.db.execute(verifyQuery);
-      console.log('🔍 [CLEANUP] Verification after delete:', verify.rows);
+      console.log('🗑️ [CLEANUP] Deleting user via Stack Auth API...');
+      const deleted = await this.stackAuthService.deleteUser(user.id);
+      console.log('✅ [CLEANUP] Delete result:', deleted);
 
-      return verify.rows.length === 0;
+      return deleted;
     } catch (error) {
       console.error('❌ [CLEANUP] Error force deleting Stack Auth user:', error);
       return false;
@@ -32,20 +33,7 @@ export class StackAuthCleanupService {
   async forceDeleteStackAuthUserById(userId: string): Promise<boolean> {
     try {
       console.log('🧹 [CLEANUP] Starting force delete for userId:', userId);
-
-      const checkQuery = sql`SELECT id, email FROM neon_auth.users_sync WHERE id = ${userId}`;
-      const existing = await this.databaseService.db.execute(checkQuery);
-      console.log('🔍 [CLEANUP] Found existing users:', existing.rows);
-
-      const deleteQuery = sql`DELETE FROM neon_auth.users_sync WHERE id = ${userId}`;
-      const result = await this.databaseService.db.execute(deleteQuery);
-      console.log('✅ [CLEANUP] Delete result:', result);
-
-      const verifyQuery = sql`SELECT id, email FROM neon_auth.users_sync WHERE id = ${userId}`;
-      const verify = await this.databaseService.db.execute(verifyQuery);
-      console.log('🔍 [CLEANUP] Verification after delete:', verify.rows);
-
-      return verify.rows.length === 0;
+      return await this.stackAuthService.deleteUser(userId);
     } catch (error) {
       console.error('❌ [CLEANUP] Error force deleting Stack Auth user by ID:', error);
       return false;
