@@ -164,10 +164,14 @@ export class UsersService {
 
     const { travelTypes: travelTypesData, ...userData } = data;
 
+    const timestamp = Date.now();
+    const tempUsername = `temp_migration_${timestamp}_${newId.substring(0, 8)}`;
+
     const mergedData = {
       ...oldUser,
       ...userData,
       id: newId,
+      username: tempUsername,
       isFromBubble: false,
       emailVerified: true,
     };
@@ -176,18 +180,24 @@ export class UsersService {
       .delete(userTravelTypes)
       .where(eq(userTravelTypes.userId, oldId));
 
+    const [newUser] = await this.databaseService.db
+      .insert(users)
+      .values(mergedData)
+      .returning();
+
     await this.databaseService.db
       .update(trips)
-      .set({ organizerId: newId })
+      .set({ organizerId: newUser.id })
       .where(eq(trips.organizerId, oldId));
 
     await this.databaseService.db
       .delete(users)
       .where(eq(users.id, oldId));
 
-    const [newUser] = await this.databaseService.db
-      .insert(users)
-      .values(mergedData)
+    const [updatedUser] = await this.databaseService.db
+      .update(users)
+      .set({ username: userData.username })
+      .where(eq(users.id, newUser.id))
       .returning();
 
     if (travelTypesData && travelTypesData.length > 0) {
@@ -198,7 +208,7 @@ export class UsersService {
 
       if (travelTypeRecords.length > 0) {
         const userTravelTypeValues = travelTypeRecords.map(tt => ({
-          userId: newUser.id,
+          userId: updatedUser.id,
           travelTypeId: tt.id,
         }));
         await this.databaseService.db
@@ -207,7 +217,7 @@ export class UsersService {
       }
     }
 
-    return newUser;
+    return updatedUser;
   }
 
   async update(id: string, data: Partial<NewUser> & { travelTypes?: string[] }) {
