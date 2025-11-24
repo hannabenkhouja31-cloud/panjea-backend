@@ -170,7 +170,7 @@ export class UsersService {
     };
   }
 
-  async migrateBubbleUser(oldId: string, newId: string, data: NewUser & { travelTypes?: string[] }) {
+  async migrateBubbleUser(oldId: string, newId: string, data: NewUser & { travelTypes?: string[]; email?: string }) {
     const [oldUser] = await this.databaseService.db
       .select()
       .from(users)
@@ -180,7 +180,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const { travelTypes: travelTypesData, ...userData } = data;
+    const { travelTypes: travelTypesData, email, ...userData } = data;
 
     const timestamp = Date.now();
     const tempUsername = `temp_migration_${timestamp}_${newId.substring(0, 8)}`;
@@ -232,6 +232,17 @@ export class UsersService {
         await this.databaseService.db
           .insert(userTravelTypes)
           .values(userTravelTypeValues);
+      }
+    }
+
+    if (email) {
+      try {
+        console.log('📧 Sending welcome email to migrated user...');
+        const verificationToken = await this.emailVerificationService.generateVerificationToken(updatedUser.id);
+        await this.emailService.sendWelcomeEmail(email, updatedUser.username, verificationToken);
+        console.log('✅ Welcome email sent successfully');
+      } catch (error) {
+        console.error('❌ Error sending welcome email:', error);
       }
     }
 
