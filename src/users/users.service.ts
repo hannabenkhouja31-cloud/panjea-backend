@@ -1,3 +1,4 @@
+// users.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, inArray } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
@@ -17,65 +18,82 @@ export class UsersService {
     private readonly emailVerificationService: EmailVerificationService,
   ) {}
 
-  async create(data: NewUser & { travelTypes?: string[]; email?: string | null }) {    const { travelTypes: travelTypesData, email, ...userData } = data;
-        
-    const [user] = await this.databaseService.db
-      .insert(users)
-      .values(userData)
-      .returning();
+  async create(data: NewUser & { travelTypes?: string[]; email?: string | null }) {
+    const { travelTypes: travelTypesData, email, ...userData } = data;
 
-    console.log('=== USER CREATION START ===');
-    console.log('User ID:', user.id);
-    console.log('Username:', user.username);
-    console.log('Email provided:', email);
-
-    if (travelTypesData && travelTypesData.length > 0) {
-      const travelTypeRecords = await this.databaseService.db
-        .select()
-        .from(travelTypes)
-        .where(inArray(travelTypes.slug, travelTypesData));
-
-      if (travelTypeRecords.length > 0) {
-        const userTravelTypeValues = travelTypeRecords.map(tt => ({
-          userId: user.id,
-          travelTypeId: tt.id,
-        }));
-        await this.databaseService.db
-          .insert(userTravelTypes)
-          .values(userTravelTypeValues);
-      } 
-    }
-
-    let userEmail: string | null | undefined = email;
-    
-    if (!userEmail) {
-      console.log('No email provided, fetching from Stack Auth...');
-      userEmail = await this.stackAuthService.getUserEmail(user.id);
-    }
-
-    if (!userEmail) {
-      console.error('No email available for user:', user.id);
-      console.log('=== USER CREATION END (NO EMAIL) ===\n');
-      return user;
-    }
+    let user;
 
     try {
-      console.log('Email:', userEmail);
-      console.log('Generating verification token...');
-      
-      const verificationToken = await this.emailVerificationService.generateVerificationToken(user.id);
-      
-      console.log('Sending welcome email...');
-      await this.emailService.sendWelcomeEmail(userEmail, user.username, verificationToken);
-      
-      console.log('Welcome email sent successfully');
-      console.log('=== USER CREATION END (SUCCESS) ===\n');
-    } catch (error) {
-      console.error('Error in email flow:', error);
-      console.log('=== USER CREATION END (ERROR) ===\n');
-    }
+      [user] = await this.databaseService.db
+        .insert(users)
+        .values(userData)
+        .returning();
 
-    return user;
+      console.log('=== USER CREATION START ===');
+      console.log('User ID:', user.id);
+      console.log('Username:', user.username);
+      console.log('Email provided:', email);
+
+      if (travelTypesData && travelTypesData.length > 0) {
+        const travelTypeRecords = await this.databaseService.db
+          .select()
+          .from(travelTypes)
+          .where(inArray(travelTypes.slug, travelTypesData));
+
+        if (travelTypeRecords.length > 0) {
+          const userTravelTypeValues = travelTypeRecords.map(tt => ({
+            userId: user.id,
+            travelTypeId: tt.id,
+          }));
+          await this.databaseService.db
+            .insert(userTravelTypes)
+            .values(userTravelTypeValues);
+        }
+      }
+
+      let userEmail: string | null | undefined = email;
+
+      if (!userEmail) {
+        console.log('No email provided, fetching from Stack Auth...');
+        userEmail = await this.stackAuthService.getUserEmail(user.id);
+      }
+
+      if (!userEmail) {
+        console.error('No email available for user:', user.id);
+        console.log('=== USER CREATION END (NO EMAIL) ===\n');
+        return user;
+      }
+
+      try {
+        console.log('Email:', userEmail);
+        console.log('Generating verification token...');
+
+        const verificationToken = await this.emailVerificationService.generateVerificationToken(user.id);
+
+        console.log('Sending welcome email...');
+        await this.emailService.sendWelcomeEmail(userEmail, user.username, verificationToken);
+
+        console.log('Welcome email sent successfully');
+        console.log('=== USER CREATION END (SUCCESS) ===\n');
+      } catch (error) {
+        console.error('Error in email flow:', error);
+        console.log('=== USER CREATION END (ERROR) ===\n');
+      }
+
+      return user;
+    } catch (error) {
+      console.error('Error creating user in database:', error);
+
+      if (userData.id) {
+        try {
+          await this.stackAuthService.deleteUser(userData.id);
+        } catch (cleanupError) {
+          console.error('Error during cleanup:', cleanupError);
+        }
+      }
+
+      throw error;
+    }
   }
 
   async findAll() {
@@ -222,7 +240,7 @@ export class UsersService {
 
   async update(id: string, data: Partial<NewUser> & { travelTypes?: string[] }) {
     const { travelTypes: travelTypesData, ...userData } = data;
-        
+
     const [user] = await this.databaseService.db
       .update(users)
       .set(userData)
@@ -271,7 +289,7 @@ export class UsersService {
       .where(eq(userTravelTypes.userId, id));
 
     const deleteResult = await this.stackAuthService.deleteUser(id);
-    
+
     if (!deleteResult) {
       throw new Error('Failed to delete user from Stack Auth');
     }
