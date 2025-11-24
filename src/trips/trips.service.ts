@@ -78,8 +78,20 @@ export class TripsService {
     return trip;
   }
 
+  async transferOrganizer(oldOrganizerId: string, newOrganizerId: string) {
+    console.log(`🔄 Transferring trips from ${oldOrganizerId} to ${newOrganizerId}`);
+
+    const result = await this.databaseService.db
+      .update(trips)
+      .set({ organizerId: newOrganizerId })
+      .where(eq(trips.organizerId, oldOrganizerId))
+      .returning();
+
+    console.log(`✅ Transferred ${result.length} trips`);
+    return result;
+  }
+
   async findByMember(userId: string) {
-  // Récupérer tous les tripIds où l'utilisateur est JOINED
   const memberTrips = await this.databaseService.db
     .select({ tripId: tripMembers.tripId })
     .from(tripMembers)
