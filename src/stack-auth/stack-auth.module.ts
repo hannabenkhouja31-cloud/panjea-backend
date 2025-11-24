@@ -1,14 +1,17 @@
-import { Global, Module } from '@nestjs/common';
+// stack-auth.module.ts
+import { Module } from '@nestjs/common';
+import { StackAuthController } from './stack-auth.controller';
 import { StackAuthService } from './stack-auth.service';
 import { StackAuthCleanupService } from './stack-auth-cleanup.service';
-import { DatabaseModule } from '../database/database.module';
-import { StackAuthController } from './stack-auth.controller';
+import { DatabaseModule } from '../database/database.module'; // Si tu utilises DatabaseService
 
-@Global()
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule], // Importer les modules dont tu as besoin
   controllers: [StackAuthController],
-  providers: [StackAuthCleanupService, StackAuthService],
-  exports: [StackAuthService],
+  providers: [
+    StackAuthService,
+    StackAuthCleanupService, // Ajouter le cleanup service
+  ],
+  exports: [StackAuthService, StackAuthCleanupService], // Exporter si nécessaire
 })
 export class StackAuthModule {}

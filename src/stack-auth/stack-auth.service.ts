@@ -1,12 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { StackServerApp } from '@stackframe/js';
-import { StackAuthCleanupService } from './stack-auth-cleanup.service';
 
 @Injectable()
 export class StackAuthService implements OnModuleInit {
   private stackServerApp: StackServerApp;
 
-  constructor(private readonly stackAuthCleanupService: StackAuthCleanupService) {}
+  constructor() {}
 
   onModuleInit() {
     this.stackServerApp = new StackServerApp({
@@ -39,7 +38,7 @@ export class StackAuthService implements OnModuleInit {
   async getUserByEmail(email: string) {
     try {
       const users = await this.stackServerApp.listUsers();
-      return users.find(u => u.primaryEmail === email) || null;
+      return users.find((u) => u.primaryEmail === email) || null;
     } catch (error) {
       console.error('Error fetching user by email:', error);
       return null;
@@ -68,22 +67,14 @@ export class StackAuthService implements OnModuleInit {
       }
 
       await user.delete();
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const checkUser = await this.stackServerApp.getUser(userId);
-
-      if (checkUser) {
-        console.error(`User ${userId} still exists after deletion attempt, forcing cleanup`);
-        return await this.stackAuthCleanupService.forceDeleteStackAuthUserById(userId);
-      }
-
+      console.log(`✅ User ${userId} deleted from Stack Auth`);
       return true;
     } catch (error) {
       if (error.message?.includes('not found')) {
         return true;
       }
-      console.error('Error deleting user from Stack Auth:', error);
-      return await this.stackAuthCleanupService.forceDeleteStackAuthUserById(userId);
+      console.error('❌ Error deleting user from Stack Auth:', error);
+      return false;
     }
   }
 }
