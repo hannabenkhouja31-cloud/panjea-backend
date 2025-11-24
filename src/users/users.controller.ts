@@ -13,6 +13,11 @@ export class UsersController {
     return this.usersService.create(data);
   }
 
+  @Get('by-email/:email')
+  findByEmail(@Param('email') email: string) {
+    return this.usersService.findByEmail(email);
+  }
+
   // Récupérer un utilisateur par ID
   @Get(':id')
   findOne(@Param('id') id: string) {
@@ -23,6 +28,12 @@ export class UsersController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() data: Partial<NewUser> & { travelTypes?: string[] }) {
     return this.usersService.update(id, data);
+  }
+
+  @Post('migrate-bubble')
+  @HttpCode(HttpStatus.OK)
+  async migrateBubbleUser(@Body() body: { oldId: string; newId: string; userData: NewUser & { travelTypes?: string[] } }) {
+    return this.usersService.migrateBubbleUser(body.oldId, body.newId, body.userData);
   }
 
   @Delete(':id')

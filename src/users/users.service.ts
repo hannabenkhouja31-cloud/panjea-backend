@@ -3,7 +3,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 import { users } from '../database/schemas/users.schema';
 import { NewUser } from './entities/user.entity';
-import { travelTypes, userTravelTypes } from 'src/database/schemas';
+import { travelTypes, trips, userTravelTypes } from 'src/database/schemas';
 import { StackAuthService } from '../stack-auth/stack-auth.service';
 import { EmailService } from '../email/email.service';
 import { EmailVerificationService } from '../email-verification/email-verification.service';
@@ -17,8 +17,7 @@ export class UsersService {
     private readonly emailVerificationService: EmailVerificationService,
   ) {}
 
-  async create(data: NewUser & { travelTypes?: string[]; email?: string }) {
-    const { travelTypes: travelTypesData, email, ...userData } = data;
+  async create(data: NewUser & { travelTypes?: string[]; email?: string | null }) {    const { travelTypes: travelTypesData, email, ...userData } = data;
         
     const [user] = await this.databaseService.db
       .insert(users)
@@ -120,6 +119,89 @@ export class UsersService {
       ...user,
       travelTypes: userTravelTypeRecords.map(record => record.slug),
     };
+  }
+
+  async findByEmail(email: string) {
+    const [user] = await this.databaseService.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${email} not found`);
+    }
+
+    if (user.isDeleted) {
+      return {
+        id: user.id,
+        username: 'Utilisateur supprimé',
+        languages: [],
+        budgetLevel: 1,
+        travelTypes: [],
+        tripsCount: 0,
+        isVerified: false,
+        emailVerified: false,
+        isDeleted: true,
+        isFromBubble: false,
+        createdAt: user.createdAt,
+      };
+    }
+
+    return {
+      ...user
+    };
+  }
+
+  async migrateBubbleUser(oldId: string, newId: string, data: NewUser & { travelTypes?: string[] }) {
+    const [oldUser] = await this.databaseService.db
+      .select()
+      .from(users)
+      .where(eq(users.id, oldId));
+
+    if (!oldUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const { travelTypes: travelTypesData, ...userData } = data;
+
+    const mergedData = {
+      ...userData,
+      id: newId,
+      tripsCount: oldUser.tripsCount,
+      reportedCount: oldUser.reportedCount,
+      createdAt: oldUser.createdAt,
+      isFromBubble: false,
+      emailVerified: true,
+      isVerified: oldUser.isVerified
+    };
+
+    return await this.databaseService.db.transaction(async (tx) => {
+      const [newUser] = await tx.insert(users).values(mergedData).returning();
+
+      await tx.update(trips)
+        .set({ organizerId: newUser.id })
+        .where(eq(trips.organizerId, oldId));
+
+      if (travelTypesData && travelTypesData.length > 0) {
+        const travelTypeRecords = await tx
+          .select()
+          .from(travelTypes)
+          .where(inArray(travelTypes.slug, travelTypesData));
+
+        if (travelTypeRecords.length > 0) {
+          const userTravelTypeValues = travelTypeRecords.map(tt => ({
+            userId: newUser.id,
+            travelTypeId: tt.id,
+          }));
+          await tx.insert(userTravelTypes).values(userTravelTypeValues);
+        }
+      }
+
+      await tx.delete(userTravelTypes).where(eq(userTravelTypes.userId, oldId));
+      await tx.delete(users).where(eq(users.id, oldId));
+
+      return newUser;
+    });
   }
 
   async update(id: string, data: Partial<NewUser> & { travelTypes?: string[] }) {

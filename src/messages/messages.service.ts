@@ -1,14 +1,29 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { eq, and, desc, or, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
-import { messages, users, tripMembers, trips, tripMedia } from 'src/database/schemas';
+import {
+  messages,
+  users,
+  tripMembers,
+  trips,
+  tripMedia,
+} from 'src/database/schemas';
 import { NewMessage } from './entities/messages.entity';
 
 @Injectable()
 export class MessagesService {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async findByTripId(tripId: string, userId: string, page: number = 1, limit: number = 30) {
+  async findByTripId(
+    tripId: string,
+    userId: string,
+    page: number = 1,
+    limit: number = 30,
+  ) {
     const offset = (page - 1) * limit;
 
     const [trip] = await this.databaseService.db
@@ -85,7 +100,7 @@ export class MessagesService {
       .insert(messages)
       .values({
         ...data,
-        readBy: []
+        readBy: [],
       })
       .returning();
 
@@ -118,7 +133,7 @@ export class MessagesService {
         and(
           eq(tripMembers.tripId, tripId),
           eq(tripMembers.userId, userId),
-          eq(tripMembers.status, 'JOINED')
+          eq(tripMembers.status, 'JOINED'),
         )
       );
 
