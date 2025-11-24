@@ -172,15 +172,23 @@ export class UsersService {
       emailVerified: true,
     };
 
+    await this.databaseService.db
+      .delete(userTravelTypes)
+      .where(eq(userTravelTypes.userId, oldId));
+
+    await this.databaseService.db
+      .update(trips)
+      .set({ organizerId: newId })
+      .where(eq(trips.organizerId, oldId));
+
+    await this.databaseService.db
+      .delete(users)
+      .where(eq(users.id, oldId));
+
     const [newUser] = await this.databaseService.db
       .insert(users)
       .values(mergedData)
       .returning();
-
-    await this.databaseService.db
-      .update(trips)
-      .set({ organizerId: newUser.id })
-      .where(eq(trips.organizerId, oldId));
 
     if (travelTypesData && travelTypesData.length > 0) {
       const travelTypeRecords = await this.databaseService.db
@@ -198,14 +206,6 @@ export class UsersService {
           .values(userTravelTypeValues);
       }
     }
-
-    await this.databaseService.db
-      .delete(userTravelTypes)
-      .where(eq(userTravelTypes.userId, oldId));
-
-    await this.databaseService.db
-      .delete(users)
-      .where(eq(users.id, oldId));
 
     return newUser;
   }
