@@ -205,7 +205,7 @@ export class UsersService {
 
     await this.databaseService.db
       .update(trips)
-      .set({ organizerId: newUser.id })
+      .set({ organizerId: newId })
       .where(eq(trips.organizerId, oldId));
 
     await this.databaseService.db
