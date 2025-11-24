@@ -13,6 +13,11 @@ export class TripsController {
     return this.tripsService.create(data);
   }
 
+  @Patch('transfer-organizer')
+  @HttpCode(HttpStatus.OK)
+  async transferOrganizer(@Body() data: { oldOrganizerId: string; newOrganizerId: string }) {
+    return this.tripsService.transferOrganizer(data.oldOrganizerId, data.newOrganizerId);
+  }
 
   // Récupérer tous les voyages
   @Get()
