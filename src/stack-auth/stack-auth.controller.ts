@@ -13,11 +13,7 @@ export class StackAuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteUser(@Param('id') id: string) {
     console.log('🗑️ [CONTROLLER] Delete user request for ID:', id);
-    const success = await this.stackAuthService.deleteUser(id);
-    if (!success) {
-      console.log('⚠️ [CONTROLLER] Normal delete failed, forcing cleanup...');
-      await this.stackAuthCleanupService.forceDeleteStackAuthUserById(id);
-    }
+    await this.stackAuthService.deleteUser(id);
     console.log('✅ [CONTROLLER] Delete user completed');
   }
 
