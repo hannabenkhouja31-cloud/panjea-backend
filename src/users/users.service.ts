@@ -165,14 +165,11 @@ export class UsersService {
     const { travelTypes: travelTypesData, ...userData } = data;
 
     const mergedData = {
+      ...oldUser,
       ...userData,
       id: newId,
-      tripsCount: oldUser.tripsCount,
-      reportedCount: oldUser.reportedCount,
-      createdAt: oldUser.createdAt,
       isFromBubble: false,
       emailVerified: true,
-      isVerified: oldUser.isVerified
     };
 
     const [newUser] = await this.databaseService.db
