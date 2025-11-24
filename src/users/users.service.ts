@@ -210,17 +210,6 @@ export class UsersService {
     return newUser;
   }
 
-    await this.databaseService.db
-      .delete(userTravelTypes)
-      .where(eq(userTravelTypes.userId, oldId));
-
-    await this.databaseService.db
-      .delete(users)
-      .where(eq(users.id, oldId));
-
-    return newUser;
-  }
-
   async update(id: string, data: Partial<NewUser> & { travelTypes?: string[] }) {
     const { travelTypes: travelTypesData, ...userData } = data;
         
