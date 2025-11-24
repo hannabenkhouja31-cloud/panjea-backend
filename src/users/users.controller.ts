@@ -32,7 +32,7 @@ export class UsersController {
 
   @Post('migrate-bubble')
   @HttpCode(HttpStatus.OK)
-  async migrateBubbleUser(@Body() body: { oldId: string; newId: string; userData: NewUser & { travelTypes?: string[] } }) {
+  async migrateBubbleUser(@Body() body: { oldId: string; newId: string; userData: NewUser & { travelTypes?: string[]; email?: string | null } }) {
     return this.usersService.migrateBubbleUser(body.oldId, body.newId, body.userData);
   }
 

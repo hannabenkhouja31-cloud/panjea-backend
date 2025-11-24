@@ -170,8 +170,8 @@ export class UsersService {
     };
   }
 
-  async migrateBubbleUser(oldId: string, newId: string, data: NewUser & { travelTypes?: string[]; email?: string }) {
-    const [oldUser] = await this.databaseService.db
+  async migrateBubbleUser(oldId: string, newId: string, data: NewUser & { travelTypes?: string[]; email?: string | null }) {
+     const [oldUser] = await this.databaseService.db
       .select()
       .from(users)
       .where(eq(users.id, oldId));
