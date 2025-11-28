@@ -18,7 +18,8 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://naida-proalliance-unsaliently.ngrok-free.dev'
+      'https://www.panjea.fr',
+      'https://panjea.fr'
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: '*',
