@@ -1,5 +1,4 @@
-// users.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { eq, inArray } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 import { users } from '../database/schemas/users.schema';
@@ -171,7 +170,9 @@ export class UsersService {
   }
 
   async migrateBubbleUser(oldId: string, newId: string, data: NewUser & { travelTypes?: string[]; email?: string | null }) {
-     const [oldUser] = await this.databaseService.db
+    console.log('🔄 Starting migration:', { oldId, newId, username: data.username });
+
+    const [oldUser] = await this.databaseService.db
       .select()
       .from(users)
       .where(eq(users.id, oldId));
@@ -180,16 +181,23 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const { travelTypes: travelTypesData, email, ...userData } = data;
+    const [existingUser] = await this.databaseService.db
+      .select()
+      .from(users)
+      .where(eq(users.username, data.username));
 
-    const timestamp = Date.now();
-    const tempUsername = `temp_migration_${timestamp}_${newId.substring(0, 8)}`;
+    if (existingUser && existingUser.id !== oldId) {
+      console.error('❌ Username already taken:', data.username);
+      throw new ConflictException(`Le pseudo "${data.username}" est déjà utilisé. Veuillez en choisir un autre.`);
+    }
+
+    const { travelTypes: travelTypesData, email, ...userData } = data;
 
     const mergedData = {
       ...oldUser,
       ...userData,
       id: newId,
-      username: tempUsername,
+      username: data.username,
       isFromBubble: false,
       emailVerified: true,
     };
@@ -198,27 +206,25 @@ export class UsersService {
       .delete(userTravelTypes)
       .where(eq(userTravelTypes.userId, oldId));
 
+    console.log('📝 Creating new user with username:', mergedData.username);
     const [newUser] = await this.databaseService.db
       .insert(users)
       .values(mergedData)
       .returning();
 
+    console.log('🗺️ Transferring trips...');
     await this.databaseService.db
       .update(trips)
       .set({ organizerId: newId })
       .where(eq(trips.organizerId, oldId));
 
+    console.log('🗑️ Deleting old user...');
     await this.databaseService.db
       .delete(users)
       .where(eq(users.id, oldId));
 
-    const [updatedUser] = await this.databaseService.db
-      .update(users)
-      .set({ username: userData.username })
-      .where(eq(users.id, newUser.id))
-      .returning();
-
     if (travelTypesData && travelTypesData.length > 0) {
+      console.log('🎒 Adding travel types...');
       const travelTypeRecords = await this.databaseService.db
         .select()
         .from(travelTypes)
@@ -226,7 +232,7 @@ export class UsersService {
 
       if (travelTypeRecords.length > 0) {
         const userTravelTypeValues = travelTypeRecords.map(tt => ({
-          userId: updatedUser.id,
+          userId: newUser.id,
           travelTypeId: tt.id,
         }));
         await this.databaseService.db
@@ -238,15 +244,16 @@ export class UsersService {
     if (email) {
       try {
         console.log('📧 Sending welcome email to migrated user...');
-        const verificationToken = await this.emailVerificationService.generateVerificationToken(updatedUser.id);
-        await this.emailService.sendWelcomeEmail(email, updatedUser.username, verificationToken);
+        const verificationToken = await this.emailVerificationService.generateVerificationToken(newUser.id);
+        await this.emailService.sendWelcomeEmail(email, newUser.username, verificationToken);
         console.log('✅ Welcome email sent successfully');
       } catch (error) {
         console.error('❌ Error sending welcome email:', error);
       }
     }
 
-    return updatedUser;
+    console.log('✅ Migration completed successfully');
+    return newUser;
   }
 
   async update(id: string, data: Partial<NewUser> & { travelTypes?: string[] }) {
@@ -311,7 +318,7 @@ export class UsersService {
 
       await new Promise(resolve => setTimeout(resolve, 1000));
     } else {
-      console.log(`⏭️ Skipping Stack Auth deletion (Bubble ID): ${id}`);
+      console.log(`⭐️ Skipping Stack Auth deletion (Bubble ID): ${id}`);
     }
 
     const [user] = await this.databaseService.db
@@ -336,6 +343,29 @@ export class UsersService {
       .select()
       .from(users)
       .where(eq(users.username, username));
-    return user;
+
+    if (!user) {
+      throw new NotFoundException(`User with username ${username} not found`);
+    }
+
+    if (user.isDeleted) {
+      return {
+        id: user.id,
+        username: 'Utilisateur supprimé',
+        languages: [],
+        budgetLevel: 1,
+        travelTypes: [],
+        tripsCount: 0,
+        isVerified: false,
+        emailVerified: false,
+        isDeleted: true,
+        isFromBubble: false,
+        createdAt: user.createdAt,
+      };
+    }
+
+    return {
+      ...user
+    };
   }
 }
