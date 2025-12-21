@@ -207,6 +207,12 @@ export class UsersService {
       .where(eq(userTravelTypes.userId, oldId));
 
     console.log('📝 Creating new user with username:', mergedData.username);
+
+    await this.databaseService.db
+      .update(users)
+      .set({ username: oldUser.id })
+      .where(eq(users.id, oldUser.id));
+
     const [newUser] = await this.databaseService.db
       .insert(users)
       .values(mergedData)
