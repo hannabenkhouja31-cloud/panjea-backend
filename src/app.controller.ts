@@ -1,0 +1,22 @@
+import { Controller, Get, HttpCode } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  @HttpCode(200)
+  getPing(): { message: string; timestamp: string } {
+    return { 
+      message: this.appService.getPing(),
+      timestamp: new Date().toLocaleDateString()+' at '+new Date().toLocaleTimeString()
+    };
+  }
+
+  @Get('/healthcheck')
+  @HttpCode(200)
+  healthCheck(){
+    return;
+  }
+}
