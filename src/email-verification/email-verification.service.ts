@@ -1,6 +1,7 @@
 // email-verification.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { EmailService } from '../email/email.service';
 import { emailVerificationTokens, users } from '../database/schemas';
 import { eq, and, gt } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
@@ -9,7 +10,10 @@ import { randomBytes } from 'crypto';
 export class EmailVerificationService {
   private readonly logger = new Logger(EmailVerificationService.name);
 
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async generateVerificationToken(userId: string): Promise<string> {
     this.logger.log(`=== GENERATE VERIFICATION TOKEN ===`);
@@ -106,5 +110,45 @@ export class EmailVerificationService {
       this.logger.log(`=== END VERIFY TOKEN (ERROR) ===\n`);
       return { success: false };
     }
+  }
+
+  async resendVerificationEmail(userId: string): Promise<{ success: boolean }> {
+    this.logger.log(`=== RESEND VERIFICATION EMAIL ===`);
+    this.logger.log(`User ID: ${userId}`);
+
+    const [user] = await this.databaseService.db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId));
+
+    if (!user) {
+      throw new NotFoundException(`User not found`);
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException(`Email already verified`);
+    }
+
+    if (!user.email) {
+      throw new BadRequestException(`User has no email address`);
+    }
+
+    await this.databaseService.db
+      .update(emailVerificationTokens)
+      .set({ used: true })
+      .where(
+        and(
+          eq(emailVerificationTokens.userId, userId),
+          eq(emailVerificationTokens.used, false),
+        ),
+      );
+
+    const token = await this.generateVerificationToken(userId);
+    await this.emailService.sendWelcomeEmail(user.email, user.username, token);
+
+    this.logger.log(`✓ Verification email resent to ${user.email}`);
+    this.logger.log(`=== END RESEND VERIFICATION EMAIL ===\n`);
+
+    return { success: true };
   }
 }

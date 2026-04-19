@@ -1,5 +1,5 @@
 // email-verification.controller.ts
-import { Controller, Get, Query, Res, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, Res, Logger, HttpCode, HttpStatus } from '@nestjs/common';
 import { EmailVerificationService } from './email-verification.service';
 import type { FastifyReply } from 'fastify';
 
@@ -43,5 +43,11 @@ export class EmailVerificationController {
     this.logger.log(`Redirecting to: ${redirectUrl}`);
     this.logger.log(`=== END VERIFICATION REQUEST (EXPIRED) ===\n`);
     return res.status(302).redirect(redirectUrl);
+  }
+
+  @Post('resend')
+  @HttpCode(HttpStatus.OK)
+  async resendVerificationEmail(@Body() body: { userId: string }) {
+    return this.emailVerificationService.resendVerificationEmail(body.userId);
   }
 }
