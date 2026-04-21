@@ -16,10 +16,16 @@ async function bootstrap() {
     new FastifyAdapter({ logger: true })
   );
 
+  const extraOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    : [];
+
   app.enableCors({
-    origin: [process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
       'https://www.panjea.fr',
-      'https://panjea.fr'
+      'https://panjea.fr',
+      ...extraOrigins,
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: '*',
