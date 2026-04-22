@@ -39,6 +39,7 @@ async function bootstrap() {
 
       await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
       console.log(`Panjea backend is running on: ${await app.getUrl()}`);
+      console.log('[VERSION] Backend started at', new Date().toISOString());
     }
   }
   
