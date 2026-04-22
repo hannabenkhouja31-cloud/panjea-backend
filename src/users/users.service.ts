@@ -64,18 +64,24 @@ export class UsersService {
       }
 
       try {
-        console.log('Email:', userEmail);
-        console.log('Generating verification token...');
+        console.log('[EMAIL FLOW] Starting email flow for user:', user.id);
+        console.log('[EMAIL FLOW] Resolved email:', userEmail);
+        console.log('[EMAIL FLOW] Username:', user.username);
 
+        console.log('[EMAIL FLOW] Step 1/2 - Generating verification token...');
         const verificationToken = await this.emailVerificationService.generateVerificationToken(user.id);
+        console.log('[EMAIL FLOW] Verification token generated:', verificationToken ? 'OK (non-null)' : 'NULL/UNDEFINED');
 
-        console.log('Sending welcome email...');
+        console.log('[EMAIL FLOW] Step 2/2 - Calling emailService.sendWelcomeEmail...');
         await this.emailService.sendWelcomeEmail(userEmail, user.username, verificationToken);
 
-        console.log('Welcome email sent successfully');
+        console.log('[EMAIL FLOW] Welcome email sent successfully');
         console.log('=== USER CREATION END (SUCCESS) ===\n');
       } catch (error) {
-        console.error('Error in email flow:', error);
+        console.error('[EMAIL FLOW] ERROR - message:', error?.message);
+        console.error('[EMAIL FLOW] ERROR - name:', error?.name);
+        console.error('[EMAIL FLOW] ERROR - stack:', error?.stack);
+        console.error('[EMAIL FLOW] ERROR - full object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
         console.log('=== USER CREATION END (ERROR) ===\n');
       }
 
