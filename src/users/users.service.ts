@@ -18,6 +18,7 @@ export class UsersService {
   ) {}
 
   async create(data: NewUser & { travelTypes?: string[]; email?: string | null }) {
+    console.log('[CREATE USER CALLED]', new Date().toISOString());
     const { travelTypes: travelTypesData, email, ...userData } = data;
 
     let user;
