@@ -20,6 +20,13 @@ async function bootstrap() {
     ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
     : [];
 
+  app.addHook('preHandler', (request, reply, done) => {
+    if (request.method === 'POST') {
+      console.log('[REQUEST]', request.method, request.url, JSON.stringify(request.body));
+    }
+    done();
+  });
+
   app.enableCors({
     origin: [
       process.env.FRONTEND_URL || 'http://localhost:5173',
