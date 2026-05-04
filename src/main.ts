@@ -20,7 +20,8 @@ async function bootstrap() {
     ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
     : [];
 
-  app.addHook('preHandler', (request, reply, done) => {
+  const fastifyInstance = app.getHttpAdapter().getInstance();
+  fastifyInstance.addHook('preHandler', (request: any, reply: any, done: any) => {
     if (request.method === 'POST') {
       console.log('[REQUEST]', request.method, request.url, JSON.stringify(request.body));
     }
