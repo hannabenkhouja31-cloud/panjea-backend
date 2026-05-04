@@ -48,6 +48,8 @@ export class EmailVerificationController {
   @Post('resend')
   @HttpCode(HttpStatus.OK)
   async resendVerificationEmail(@Body() body: { userId: string }) {
+    console.log('[RESEND] Body reçu:', body);
+    console.log('[RESEND] userId:', body?.userId);
     return this.emailVerificationService.resendVerificationEmail(body.userId);
   }
 }
