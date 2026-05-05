@@ -13,8 +13,10 @@ export class PasswordResetService {
   ) {}
 
   async generateResetToken(email: string): Promise<{ success: boolean; token?: string; userId?: string }> {
+    console.log('[RESET] Looking up email:', email);
     const stackUser = await this.stackAuthService.getUserByEmail(email);
-    
+    console.log('[RESET] Stack Auth user found:', stackUser?.id || 'NOT FOUND');
+
     if (!stackUser) {
       return { success: false };
     }
@@ -23,6 +25,8 @@ export class PasswordResetService {
       .select()
       .from(users)
       .where(eq(users.id, stackUser.id));
+
+    console.log('[RESET] DB user found:', user?.id || 'NOT FOUND');
 
     if (!user) {
       return { success: false };
