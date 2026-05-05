@@ -109,6 +109,7 @@ export class EmailService {
       const passwordResetTemplateId = process.env.ONESIGNAL_PASSWORD_RESET_TEMPLATE_ID;
       const resetUrl = `${this.frontendUrl}/reset-password?token=${token}`;
 
+      console.log('[EMAIL] Starting password reset for:', email);
       try {
         const subscribeResponse = await fetch(`https://api.onesignal.com/apps/${appId}/users`, {
           method: 'POST',
@@ -124,10 +125,11 @@ export class EmailService {
             }]
           })
         });
-        
+
+        console.log('[EMAIL] Subscribe response status:', subscribeResponse.status);
         const subscribeResult = await subscribeResponse.json();
         this.logger.log(`Subscribe response:`, JSON.stringify(subscribeResult, null, 2));
-        
+
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (subscribeError) {
         this.logger.warn(`Subscribe failed (continuing anyway):`, subscribeError);
@@ -147,6 +149,7 @@ export class EmailService {
         email_from_address: fromAddress,
       };
 
+      console.log('[EMAIL] Sending notification with payload:', JSON.stringify(payload));
       const response = await fetch('https://api.onesignal.com/notifications?c=email', {
         method: 'POST',
         headers: {
@@ -156,6 +159,7 @@ export class EmailService {
         body: JSON.stringify(payload),
       });
 
+      console.log('[EMAIL] OneSignal response status:', response.status);
       this.logger.log(`OneSignal Response Status: ${response.status}`);
 
       if (!response.ok) {
