@@ -58,6 +58,13 @@ export class UsersService {
         userEmail = await this.stackAuthService.getUserEmail(user.id);
       }
 
+      if (userEmail) {
+        await this.databaseService.db
+          .update(users)
+          .set({ email: userEmail })
+          .where(eq(users.id, user.id));
+      }
+
       if (!userEmail) {
         console.error('No email available for user:', user.id);
         console.log('=== USER CREATION END (NO EMAIL) ===\n');
