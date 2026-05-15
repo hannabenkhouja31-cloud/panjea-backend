@@ -10,9 +10,7 @@ export class StackAuthService implements OnModuleInit {
   onModuleInit() {
     this.stackServerApp = new StackServerApp({
       projectId: process.env.STACK_PROJECT_ID,
-      publishableClientKey: process.env.STACK_PUBLISHABLE_CLIENT_KEY,
       secretServerKey: process.env.STACK_SECRET_SERVER_KEY,
-      tokenStore: 'memory',
     });
   }
 
@@ -50,7 +48,7 @@ export class StackAuthService implements OnModuleInit {
       const user = await this.stackServerApp.getUser(userId);
       if (!user) return false;
 
-      await user.update({ password: newPassword });
+      await this.stackServerApp.updateUser(userId, { password: newPassword });
       return true;
     } catch (error) {
       console.error('Error updating password:', error);
