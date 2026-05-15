@@ -32,7 +32,15 @@ export class PasswordResetController {
 
   @Post('confirm')
   async confirmReset(@Body('token') token: string, @Body('newPassword') newPassword: string) {
-    const result = await this.passwordResetService.resetPassword(token, newPassword);
-    return result;
+    try {
+      const result = await this.passwordResetService.resetPassword(token, newPassword);
+      if (!result.success) {
+        return { success: false, message: 'Token invalide, expiré ou mot de passe non mis à jour' };
+      }
+      return { success: true };
+    } catch (err) {
+      console.error('confirmReset error:', err);
+      return { success: false, message: 'Erreur serveur lors de la réinitialisation' };
+    }
   }
 }
